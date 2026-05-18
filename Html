@@ -1,0 +1,440 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+const MINT = "#52c4a0";
+const MINT_DARK = "#3aaa86";
+const INDIGO_DEEP = "#1e1b4b";
+const SLATE_BG = "#0f172a";
+
+const PSYCH_QUICK = [
+  "I need someone to listen",
+  "Anxiety management techniques",
+  "I'm feeling overwhelmed",
+  "Help me breathe",
+  "Coping with grief",
+  "I can't sleep",
+];
+
+const SCAN_STEPS = [
+  "Initializing rPPG sensor array...",
+  "Reading micro-color rPPG changes...",
+  "Isolating arterial waveforms...",
+  "Analyzing photoplethysmographic signal...",
+  "Computing hemodynamic parameters...",
+  "Calibrating SpO₂ baseline...",
+  "Detecting respiratory oscillations...",
+  "Finalizing diagnostic matrix...",
+];
+
+const MEDICATION_KEYWORDS = [
+  "medicine", "medication", "drug", "prescribe", "prescription",
+  "antibiotic", "gamot", "tableta", "syrup", "dosage",
+  "what should i take", "lagnat", "ubo", "sakit", "paracetamol",
+  "ibuprofen", "amoxicillin", "dose", "treat", "cure",
+];
+
+const isMedQuery = (text) =>
+  MEDICATION_KEYWORDS.some((k) => text.toLowerCase().includes(k));
+
+function useTypewriter(text, speed = 18, active = true) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!active) { setDisplayed(text); setDone(true); return; }
+    setDisplayed(""); setDone(false);
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) { clearInterval(id); setDone(true); }
+    }, speed);
+    return () => clearInterval(id);
+  }, [text, speed, active]);
+  return { displayed, done };
+}
+
+function TypingBubble({ text, psych, onDone }) {
+  const { displayed, done } = useTypewriter(text, 16, true);
+  useEffect(() => { if (done && onDone) onDone(); }, [done, onDone]);
+  return (
+    <div style={{
+      background: psych ? "rgba(99,102,241,0.22)" : "rgba(82,196,160,0.13)",
+      border: `1px solid ${psych ? "rgba(129,140,248,0.35)" : "rgba(82,196,160,0.3)"}`,
+      borderRadius: 16, padding: "12px 16px",
+      maxWidth: "82%", fontSize: 13.5, lineHeight: 1.6,
+      color: psych ? "#c7d2fe" : "#e2f5f0",
+      alignSelf: "flex-start",
+    }}>
+      {displayed}{!done && <span style={{ opacity: 0.5 }}>▌</span>}
+    </div>
+  );
+}
+
+function MedGuardrail() {
+  return (
+    <div style={{
+      background: "linear-gradient(90deg,#7f1d1d,#991b1b)",
+      border: "1px solid #ef4444", borderRadius: 10,
+      padding: "10px 14px", fontSize: 12.5, color: "#fecaca",
+      display: "flex", gap: 8, alignItems: "flex-start",
+      boxShadow: "0 0 16px rgba(239,68,68,0.25)",
+      marginTop: 4,
+    }}>
+      <span style={{ fontSize: 16, flexShrink: 0 }}>🔴</span>
+      <div>
+        <strong style={{ color: "#fca5a5", display: "block", marginBottom: 2 }}>
+          Medical Advice Guardrail
+        </strong>
+        For medical diagnosis and prescriptions, kindly consult your real-life doctor immediately. AuraPulse AI provides supportive educational information only — not clinical advice.
+      </div>
+    </div>
+  );
+}
+
+const FACES_SCORES = [
+  { val: 0, emoji: "😊", label: "No hurt" },
+  { val: 2, emoji: "🙂", label: "Hurts little bit" },
+  { val: 4, emoji: "😐", label: "Hurts little more" },
+  { val: 6, emoji: "😟", label: "Hurts even more" },
+  { val: 8, emoji: "😢", label: "Hurts whole lot" },
+  { val: 10, emoji: "😭", label: "Hurts worst" },
+];
+
+function DiagnosticCards({ onClose }) {
+  const [flacc, setFlacc] = useState("FLACC");
+  const [painScore, setPainScore] = useState(2);
+  const vitals = [
+    { label: "Heart Rate", val: 74, unit: "BPM", color: "#f87171", icon: "❤️" },
+    { label: "Respiratory Rate", val: 16, unit: "br/min", color: "#60a5fa", icon: "🫁" },
+    { label: "SpO₂", val: 98, unit: "%", color: MINT, icon: "💫" },
+    { label: "Blood Pressure", val: "118/76", unit: "mmHg", color: "#a78bfa", icon: "🩺" },
+    { label: "Core Temp", val: "36.8", unit: "°C", color: "#fb923c", icon: "🌡️" },
+    { label: "Pulse Strength", val: "Strong", unit: "", color: "#34d399", icon: "〰️" },
+  ];
+  const selectedFace = FACES_SCORES.find((f) => f.val === painScore) || FACES_SCORES[1];
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200,
+    }}>
+      <div style={{
+        background: "#0f1a2e", border: "1px solid rgba(82,196,160,0.3)",
+        borderRadius: 20, padding: 28, width: 640, maxHeight: "88vh",
+        overflowY: "auto", boxShadow: "0 0 60px rgba(82,196,160,0.15)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <div style={{ color: MINT, fontSize: 11, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>
+              Scan Complete · {new Date().toLocaleTimeString()}
+            </div>
+            <h2 style={{ color: "#e2f5f0", margin: 0, fontSize: 20, fontFamily: "'DM Serif Display', Georgia, serif" }}>
+              Diagnostic Metrics
+            </h2>
+          </div>
+          <button onClick={onClose} style={{
+            background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)",
+            color: "#f87171", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 13,
+          }}>✕ Close</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+          {vitals.map((v) => (
+            <div key={v.label} style={{
+              background: "rgba(255,255,255,0.04)", border: `1px solid ${v.color}33`,
+              borderRadius: 14, padding: "14px 16px",
+              borderTop: `2px solid ${v.color}`,
+            }}>
+              <div style={{ fontSize: 20, marginBottom: 6 }}>{v.icon}</div>
+              <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>{v.label}</div>
+              <div style={{ color: v.color, fontSize: 22, fontWeight: 700, fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                {v.val}
+              </div>
+              <div style={{ color: "#64748b", fontSize: 10, marginTop: 2 }}>{v.unit}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(167,139,250,0.25)",
+            borderRadius: 14, padding: 16,
+          }}>
+            <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 10, letterSpacing: 1, textTransform: "uppercase" }}>
+              Neonatal Scale
+            </div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+              {["APGAR", "FLACC"].map((s) => (
+                <button key={s} onClick={() => setFlacc(s)} style={{
+                  background: flacc === s ? "rgba(167,139,250,0.25)" : "transparent",
+                  border: `1px solid ${flacc === s ? "#a78bfa" : "rgba(167,139,250,0.2)"}`,
+                  color: flacc === s ? "#c4b5fd" : "#64748b",
+                  borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 12,
+                }}>{s}</button>
+              ))}
+            </div>
+            {flacc === "APGAR" ? (
+              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.8 }}>
+                {["Appearance", "Pulse", "Grimace", "Activity", "Respiration"].map((c, i) => (
+                  <div key={c} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>{c}</span>
+                    <span style={{ color: "#c4b5fd", fontWeight: 600 }}>{[2, 2, 1, 2, 2][i]}</span>
+                  </div>
+                ))}
+                <div style={{ borderTop: "1px solid rgba(167,139,250,0.2)", marginTop: 6, paddingTop: 6, color: "#c4b5fd", fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
+                  <span>Total APGAR</span><span>9 / 10</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.8 }}>
+                {["Face", "Legs", "Activity", "Cry", "Consolability"].map((c, i) => (
+                  <div key={c} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>{c}</span>
+                    <span style={{ color: "#c4b5fd", fontWeight: 600 }}>{[1, 0, 1, 0, 1][i]}</span>
+                  </div>
+                ))}
+                <div style={{ borderTop: "1px solid rgba(167,139,250,0.2)", marginTop: 6, paddingTop: 6, color: "#c4b5fd", fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
+                  <span>FLACC Score</span><span>3 / 10</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(251,146,60,0.25)",
+            borderRadius: 14, padding: 16,
+          }}>
+            <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 10, letterSpacing: 1, textTransform: "uppercase" }}>
+              Wong-Baker FACES Pain
+            </div>
+            <div style={{ textAlign: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 40 }}>{selectedFace.emoji}</div>
+              <div style={{ color: "#fb923c", fontSize: 18, fontWeight: 700 }}>{selectedFace.val}</div>
+              <div style={{ color: "#94a3b8", fontSize: 11 }}>{selectedFace.label}</div>
+            </div>
+            <input type="range" min={0} max={10} step={2} value={painScore}
+              onChange={(e) => setPainScore(Number(e.target.value))}
+              style={{ width: "100%", accentColor: "#fb923c" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: 10, marginTop: 4 }}>
+              <span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span>
+            </div>
+          </div>
+        </div>
+        <div style={{
+          marginTop: 14, padding: "10px 14px", background: "rgba(82,196,160,0.08)",
+          border: "1px solid rgba(82,196,160,0.2)", borderRadius: 10,
+          fontSize: 12, color: "#6ee7b7",
+        }}>
+          ⚕️ <strong>Educational Note:</strong> These readings are simulated for demonstration purposes only. For actual clinical assessment, use validated medical-grade equipment and consult a licensed healthcare provider.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BioScanTerminal() {
+  const videoRef = useRef(null);
+  const [camActive, setCamActive] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanStep, setScanStep] = useState(0);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [showResults, setShowResults] = useState(false);
+  const [camError, setCamError] = useState(false);
+
+  const startCam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
+      setCamActive(true); setCamError(false);
+    } catch {
+      setCamError(true);
+    }
+  };
+
+  const stopCam = () => {
+    if (videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach((t) => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCamActive(false); setScanning(false); setScanProgress(0); setScanStep(0);
+  };
+
+  const startScan = () => {
+    setScanning(true); setScanProgress(0); setScanStep(0);
+    const total = 15000;
+    const stepDuration = total / SCAN_STEPS.length;
+    let stepIndex = 0;
+    const stepInterval = setInterval(() => {
+      stepIndex++;
+      if (stepIndex < SCAN_STEPS.length) setScanStep(stepIndex);
+      else clearInterval(stepInterval);
+    }, stepDuration);
+    const progressInterval = setInterval(() => {
+      setScanProgress((p) => {
+        if (p >= 100) {
+          clearInterval(progressInterval);
+          setScanning(false);
+          setShowResults(true);
+          return 100;
+        }
+        return p + 100 / (total / 100);
+      });
+    }, 100);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {showResults && <DiagnosticCards onClose={() => setShowResults(false)} />}
+      <div style={{
+        position: "relative", background: "#000", borderRadius: 16,
+        overflow: "hidden", aspectRatio: "16/9",
+        border: `1px solid ${scanning ? MINT : "rgba(82,196,160,0.2)"}`,
+        boxShadow: scanning ? `0 0 30px rgba(82,196,160,0.3)` : "none",
+      }}>
+        <video ref={videoRef} playsInline muted style={{
+          width: "100%", height: "100%", objectFit: "cover",
+          display: camActive ? "block" : "none",
+        }} />
+        {!camActive && (
+          <div style={{
+            position: "absolute", inset: 0, display: "flex",
+            flexDirection: "column", alignItems: "center", justifyContent: "center",
+            color: "#334155",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📷</div>
+            <div style={{ fontSize: 14, color: "#475569" }}>
+              {camError ? "Camera access denied. Please allow camera permissions." : "Camera inactive"}
+            </div>
+          </div>
+        )}
+        {camActive && scanning && (
+          <>
+            <div style={{
+              position: "absolute", inset: 0, border: `2px solid ${MINT}`,
+              borderRadius: 16, animation: "pulse-border 1.5s ease-in-out infinite", pointerEvents: "none",
+            }} />
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} style={{
+                position: "absolute",
+                top: `${10 + i * 22}%`, left: "8%", right: "8%",
+                height: 1, background: `rgba(82,196,160,${0.15 + i * 0.08})`,
+                animation: `scan-line 2s ease-in-out ${i * 0.3}s infinite`,
+              }} />
+            ))}
+            <div style={{
+              position: "absolute", top: 12, left: 12, right: 12,
+              background: "rgba(0,0,0,0.7)", borderRadius: 8,
+              padding: "8px 12px",
+            }}>
+              <div style={{ color: MINT, fontSize: 11, marginBottom: 6 }}>
+                🔬 {SCAN_STEPS[scanStep]}
+              </div>
+              <div style={{ height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 4 }}>
+                <div style={{
+                  height: "100%", background: MINT,
+                  width: `${scanProgress}%`, borderRadius: 4,
+                  transition: "width 0.1s linear",
+                }} />
+              </div>
+              <div style={{ color: "#64748b", fontSize: 10, marginTop: 4 }}>
+                {Math.round(scanProgress)}% · Radial Artery + Torso Analysis
+              </div>
+            </div>
+            <div style={{
+              position: "absolute", bottom: 12, left: 12, right: 12,
+              display: "flex", justifyContent: "center", gap: 16,
+            }}>
+              {["rPPG", "SpO₂", "RR", "BP"].map((m) => (
+                <div key={m} style={{
+                  background: "rgba(0,0,0,0.7)", border: "1px solid rgba(82,196,160,0.4)",
+                  borderRadius: 6, padding: "4px 10px", color: MINT, fontSize: 11,
+                }}>
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: MINT, marginRight: 5, animation: "pulse-dot 1s ease-in-out infinite" }} />
+                  {m}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {camActive && !scanning && (
+          <div style={{
+            position: "absolute", top: 12, left: 12,
+            background: "rgba(0,0,0,0.6)", border: "1px solid rgba(82,196,160,0.4)",
+            borderRadius: 6, padding: "4px 10px", color: MINT, fontSize: 11,
+          }}>
+            <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#22c55e", marginRight: 5 }} />
+            Camera Live
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        {!camActive ? (
+          <button onClick={startCam} style={btnStyle(MINT, "rgba(82,196,160,0.15)")}>
+            📷 Activate Webcam
+          </button>
+        ) : (
+          <>
+            <button onClick={startScan} disabled={scanning} style={btnStyle(MINT, "rgba(82,196,160,0.15)", scanning)}>
+              {scanning ? "⟳ Scanning..." : "🔬 Initiate Radial Artery / Torso Scan"}
+            </button>
+            <button onClick={stopCam} style={btnStyle("#f87171", "rgba(239,68,68,0.1)")}>
+              ✕ Stop
+            </button>
+          </>
+        )}
+      </div>
+      <style>{`
+        @keyframes pulse-border { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        @keyframes scan-line { 0%{opacity:0.2} 50%{opacity:0.8} 100%{opacity:0.2} }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+      `}</style>
+    </div>
+  );
+}
+
+function btnStyle(color, bg, disabled = false) {
+  return {
+    background: bg, border: `1px solid ${color}55`,
+    color, borderRadius: 10, padding: "10px 18px",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontSize: 13, opacity: disabled ? 0.6 : 1,
+    fontWeight: 600, display: "flex", alignItems: "center", gap: 6,
+    transition: "all 0.2s",
+  };
+}
+
+function WomensCycleHealth() {
+  const [day, setDay] = useState(14);
+  const phases = [
+    { name: "Menstrual", days: "1–5", color: "#f87171", info: "Shedding of uterine lining. Rest, iron-rich foods, heat therapy recommended." },
+    { name: "Follicular", days: "6–13", color: "#60a5fa", info: "Estrogen rises. Energy increases. Optimal time for strength training." },
+    { name: "Ovulation", days: "14–16", color: MINT, info: "LH surge triggers egg release. Peak fertility window. High energy and sociability." },
+    { name: "Luteal", days: "17–28", color: "#a78bfa", info: "Progesterone rises. May experience PMS. Prioritize rest and complex carbs." },
+  ];
+  const currentPhase = day <= 5 ? phases[0] : day <= 13 ? phases[1] : day <= 16 ? phases[2] : phases[3];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{
+        background: "rgba(255,255,255,0.03)", border: "1px solid rgba(82,196,160,0.2)",
+        borderRadius: 16, padding: 20,
+      }}>
+        <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 8 }}>Current Cycle Day</div>
+        <input type="range" min={1} max={28} value={day} onChange={(e) => setDay(Number(e.target.value))}
+          style={{ width: "100%", accentColor: currentPhase.color }} />
+        <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", fontSize: 11, marginTop: 4 }}>
+          <span>Day 1</span><span style={{ color: currentPhase.color, fontWeight: 700 }}>Day {day}</span><span>Day 28</span>
+        </div>
+      </div>
+      <div style={{
+        background: `${currentPhase.color}15`, border: `1px solid ${currentPhase.color}40`,
+        borderRadius: 14, padding: 18,
+      }}>
+        <div style={{ color: currentPhase.color, fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
+          {currentPhase.name} Phase · Days {currentPhase.days}
+        </div>
+        <div style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.7 }}>{currentPhase.info}</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {phases.map((p) => (
+          <div key={p.name} onClick={() => setDay(parseInt(p.days.split("–")[0]))} style={{
+            background: currentPhase.name === p.name ? `${p.color}20` : "rgba(255,255,255,0.03)",
+            border: `1px solid ${currentPhase.name === p.name ? p.color : "rgba(255,255,255,0.08)"}`,
+            borderRadius: 10, padding: "10px 14px", cursor: "pointer",
+          }}>
+            <div style={{ color: p.color, fontSize: 13, fontWeight: 600 }}>{p.name}</div>
+         
